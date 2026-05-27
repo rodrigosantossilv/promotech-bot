@@ -1,186 +1,417 @@
+cat > promotech_bot.py << 'FIM'
 import requests
 import json
 import time
-import hashlib
 from datetime import datetime
 
 # ============================================================
-# CONFIGURAÇÕES - EDITE AQUI
+# CONFIGURAÇÕES
 # ============================================================
-TELEGRAM_TOKEN = "8859168984:AAH8nvexWLrbVjGX46cDSfzaCEteUkFNELs"
-CANAL_ID = "@promotechbrasil01"
-PUBLISHER_ID = "XHKT38-E62C"
 
-# Categorias de tecnologia para buscar no ML
+TELEGRAM_TOKEN = "COLOQUE_SEU_NOVO_TOKEN"
+CANAL_ID = "@promotechbrasil01"
+
+# ID afiliado correto
+PUBLISHER_ID = "silvarodri20221029134247"
+
 CATEGORIAS = [
-    "SSD",
+    "ssd",
     "placa de video",
+    "rx 7600",
+    "rtx 4060",
+    "rtx 4070",
     "processador",
+    "ryzen",
+    "intel i5",
+    "intel i7",
     "notebook gamer",
-    "teclado mecanico",
-    "mouse gamer",
     "monitor gamer",
-    "memoria ram",
+    "mouse gamer",
+    "teclado mecanico",
     "headset gamer",
-    "gabinete pc"
+    "cadeira gamer",
+    "gabinete gamer",
+    "fonte gamer",
+    "water cooler",
+    "pc gamer"
 ]
 
-# Arquivo para controlar produtos já enviados
-ARQUIVO_ENVIADOS = "produtos_enviados.json"
+ARQUIVO = "enviados.json"
 
 # ============================================================
-# FUNÇÕES
+# SESSION REQUESTS
 # ============================================================
 
-def carregar_enviados():
+session = requests.Session()
+
+# ============================================================
+# SALVAR ENVIADOS
+# ============================================================
+
+def carregar():
+
     try:
-        with open(ARQUIVO_ENVIADOS, "r") as f:
+
+        with open(ARQUIVO, "r") as f:
             return json.load(f)
+
     except:
+
         return []
 
-def salvar_enviados(lista):
-    with open(ARQUIVO_ENVIADOS, "w") as f:
-        json.dump(lista[-500:], f)  # Guarda últimos 500
+def salvar(lista):
 
-def gerar_link_afiliado(url_produto):
-    """Gera link com ID de afiliado do ML"""
-    if "?" in url_produto:
-        return f"{url_produto}&matt_tool={PUBLISHER_ID}&matt_word=&matt_source=telegram"
-    else:
-        return f"{url_produto}?matt_tool={PUBLISHER_ID}&matt_word=&matt_source=telegram"
+    with open(ARQUIVO, "w") as f:
+        json.dump(lista[-5000:], f)
 
-def buscar_produtos_ml(termo):
-    """Busca produtos em promoção no ML"""
+# ============================================================
+# LINK AFILIADO
+# ============================================================
+
+def afiliado(link):
+
+    if "?" in link:
+
+        return (
+            f"{link}"
+            f"&matt_tool={PUBLISHER_ID}"
+            f"&matt_source=telegram"
+        )
+
+    return (
+        f"{link}"
+        f"?matt_tool={PUBLISHER_ID}"
+        f"&matt_source=telegram"
+    )
+
+# ============================================================
+# FORMATAR PREÇO
+# ============================================================
+
+def preco(valor):
+
+    return (
+        f"R$ {valor:,.2f}"
+        .replace(",", "X")
+        .replace(".", ",")
+        .replace("X", ".")
+    )
+
+# ============================================================
+# BUSCAR PRODUTOS
+# ============================================================
+
+def buscar(termo):
+
     try:
-        url = f"https://api.mercadolibre.com/sites/MLB/search?q={termo}&sort=price_asc&condition=new&limit=3"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        response = requests.get(url, headers=headers, timeout=10)
-        
+
+        url = (
+            "https://api.mercadolibre.com/sites/MLB/search"
+            f"?q={termo}"
+            "&limit=10"
+            "&sort=relevance"
+        )
+
+        headers = {
+
+            "User-Agent": (
+                "Mozilla/5.0 "
+                "(Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 "
+                "(KHTML, like Gecko) "
+                "Chrome/123.0 Safari/537.36"
+            ),
+
+            "Accept": "application/json",
+            "Accept-Language": "pt-BR,pt;q=0.9",
+            "Connection": "keep-alive"
+
+        }
+
+        response = session.get(
+
+            url,
+            headers=headers,
+            timeout=30
+
+        )
+
+        print(f"📡 ML status: {response.status_code}")
+
+        if response.status_code != 200:
+
+            print(response.text)
+
+            return []
+
+        dados = response.json()
+
+        produtos = dados.get(
+            "results",
+            []
+        )
+
+        print(
+            f"🔍 {termo}: "
+            f"{len(produtos)} produtos"
+        )
+
+        return produtos
+
+    except Exception as e:
+
+        print(f"❌ ERRO ML: {e}")
+
+        time.sleep(10)
+
+        return []
+
+# ============================================================
+# ENVIAR TELEGRAM
+# ============================================================
+
+def enviar(msg):
+
+    try:
+
+        url = (
+            f"https://api.telegram.org/"
+            f"bot{TELEGRAM_TOKEN}/sendMessage"
+        )
+
+        payload = {
+
+            "chat_id": CANAL_ID,
+            "text": msg,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": False
+
+        }
+
+        headers = {
+
+            "User-Agent": "Mozilla/5.0",
+            "Content-Type": "application/json"
+
+        }
+
+        response = session.post(
+
+            url,
+            json=payload,
+            headers=headers,
+            timeout=30
+
+        )
+
+        print(
+            f"📨 Telegram status: "
+            f"{response.status_code}"
+        )
+
         if response.status_code == 200:
-            dados = response.json()
-            return dados.get("results", [])
+
+            return True
+
+        print(response.text)
+
     except Exception as e:
-        print(f"Erro ao buscar {termo}: {e}")
-    return []
 
-def formatar_preco(preco):
-    """Formata preço em reais"""
-    return f"R$ {preco:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        print(f"❌ Telegram erro: {e}")
 
-def enviar_telegram(mensagem):
-    """Envia mensagem pro canal do Telegram"""
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    dados = {
-        "chat_id": CANAL_ID,
-        "text": mensagem,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": False
-    }
-    try:
-        response = requests.post(url, json=dados, timeout=10)
-        return response.status_code == 200
-    except Exception as e:
-        print(f"Erro ao enviar Telegram: {e}")
-        return False
+        # espera antes de tentar novamente
+        time.sleep(15)
 
-def processar_produto(produto, enviados):
-    """Processa e envia um produto se ainda não foi enviado"""
-    produto_id = str(produto.get("id", ""))
-    
-    if produto_id in enviados:
-        return False
-    
-    titulo = produto.get("title", "")
-    preco = produto.get("price", 0)
-    preco_original = produto.get("original_price", 0)
-    link = produto.get("permalink", "")
-    vendedor = produto.get("seller", {}).get("nickname", "")
-    
-    # Só posta se tiver desconto real
-    if preco_original and preco_original > preco:
-        desconto = int(((preco_original - preco) / preco_original) * 100)
-        if desconto < 5:  # Ignora descontos menores que 5%
-            return False
-    else:
-        desconto = 0
-    
-    link_afiliado = gerar_link_afiliado(link)
-    
-    # Monta a mensagem
-    if desconto > 0:
-        mensagem = (
-            f"🔥 <b>OFERTA IMPERDÍVEL!</b>\n\n"
-            f"📌 {titulo}\n\n"
-            f"💰 <s>{formatar_preco(preco_original)}</s> → <b>{formatar_preco(preco)}</b>\n"
-            f"🏷️ <b>{desconto}% OFF</b>\n\n"
-            f"🛒 <a href='{link_afiliado}'>COMPRAR AGORA</a>\n\n"
-            f"#PromoTech #Ofertas #MercadoLivre #Gamer"
-        )
-    else:
-        mensagem = (
-            f"💻 <b>PRODUTO EM DESTAQUE!</b>\n\n"
-            f"📌 {titulo}\n\n"
-            f"💰 <b>{formatar_preco(preco)}</b>\n\n"
-            f"🛒 <a href='{link_afiliado}'>VER PRODUTO</a>\n\n"
-            f"#PromoTech #MercadoLivre #Gamer"
-        )
-    
-    sucesso = enviar_telegram(mensagem)
-    
-    if sucesso:
-        enviados.append(produto_id)
-        print(f"✅ Enviado: {titulo[:50]}...")
-        return True
-    
     return False
 
-def executar_ciclo():
-    """Executa um ciclo de busca e envio"""
-    print(f"\n⏰ Iniciando ciclo: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
-    enviados = carregar_enviados()
-    total_enviados = 0
-    
-    for categoria in CATEGORIAS:
-        print(f"🔍 Buscando: {categoria}")
-        produtos = buscar_produtos_ml(categoria)
-        
-        for produto in produtos:
-            if processar_produto(produto, enviados):
-                total_enviados += 1
-                time.sleep(3)  # Pausa entre envios
-            
-            if total_enviados >= 5:  # Máximo 5 produtos por ciclo
-                break
-        
-        if total_enviados >= 5:
-            break
-        
-        time.sleep(2)
-    
-    salvar_enviados(enviados)
-    print(f"✅ Ciclo finalizado. {total_enviados} produtos enviados.")
+# ============================================================
+# PROCESSAR PRODUTO
+# ============================================================
+
+def processar(produto, enviados):
+
+    try:
+
+        produto_id = str(
+            produto.get("id", "")
+        )
+
+        # evita repetir
+        if produto_id in enviados:
+            return False
+
+        titulo = produto.get(
+            "title",
+            ""
+        )
+
+        valor = produto.get(
+            "price",
+            0
+        )
+
+        valor_antigo = (
+            produto.get("original_price")
+            or 0
+        )
+
+        permalink = produto.get(
+            "permalink",
+            ""
+        )
+
+        if not permalink:
+            return False
+
+        link = afiliado(
+            permalink
+        )
+
+        desconto = 0
+
+        if valor_antigo > valor:
+
+            desconto = int(
+                (
+                    (valor_antigo - valor)
+                    / valor_antigo
+                ) * 100
+            )
+
+        # ====================================================
+
+        if desconto > 0:
+
+            mensagem = (
+
+                "🔥 <b>SUPER OFERTA TECH</b>\n\n"
+
+                f"📌 <b>{titulo}</b>\n\n"
+
+                f"💸 De: "
+                f"<s>{preco(valor_antigo)}</s>\n"
+
+                f"💰 Por: "
+                f"<b>{preco(valor)}</b>\n"
+
+                f"🏷️ "
+                f"<b>{desconto}% OFF</b>\n\n"
+
+                f"🛒 "
+                f"<a href='{link}'>"
+                f"👉 COMPRAR AGORA"
+                f"</a>\n\n"
+
+                "#PromoTech #Oferta #Gamer"
+
+            )
+
+        else:
+
+            mensagem = (
+
+                "💻 <b>PRODUTO TECH</b>\n\n"
+
+                f"📌 <b>{titulo}</b>\n\n"
+
+                f"💰 "
+                f"<b>{preco(valor)}</b>\n\n"
+
+                f"🛒 "
+                f"<a href='{link}'>"
+                f"👉 VER PRODUTO"
+                f"</a>\n\n"
+
+                "#PromoTech #Tecnologia"
+
+            )
+
+        sucesso = enviar(
+            mensagem
+        )
+
+        if sucesso:
+
+            enviados.append(
+                produto_id
+            )
+
+            salvar(enviados)
+
+            print(
+                f"✅ {titulo[:60]}"
+            )
+
+            return True
+
+    except Exception as e:
+
+        print(
+            f"❌ Produto erro: {e}"
+        )
+
+    return False
 
 # ============================================================
-# EXECUÇÃO PRINCIPAL
+# LOOP PRINCIPAL
 # ============================================================
-if __name__ == "__main__":
-    print("🚀 PromoTech Bot iniciado!")
-    print(f"📢 Canal: {CANAL_ID}")
-    print(f"🔄 Buscando a cada 1 hora...\n")
-    
-    # Envia mensagem de início
-    enviar_telegram(
+
+def executar():
+
+    enviados = carregar()
+
+    enviar(
+
         "🤖 <b>PromoTech Bot ativado!</b>\n\n"
-        "🔥 Agora você receberá as melhores ofertas de tecnologia automaticamente!\n\n"
+
+        "🔥 Monitorando ofertas tech "
+        "automaticamente.\n\n"
+
         "#PromoTech #Automação"
+
     )
-    
+
+    print("🚀 BOT INICIADO!")
+
     while True:
+
         try:
-            executar_ciclo()
+
+            print(
+                f"\n⏰ "
+                f"{datetime.now().strftime('%d/%m %H:%M:%S')}"
+            )
+
+            for categoria in CATEGORIAS:
+
+                produtos = buscar(
+                    categoria
+                )
+
+                for produto in produtos:
+
+                    processar(
+                        produto,
+                        enviados
+                    )
+
+                    # evita bloqueio
+                    time.sleep(3)
+
+                time.sleep(2)
+
         except Exception as e:
-            print(f"❌ Erro no ciclo: {e}")
-        
-        print("⏳ Aguardando 1 hora para próximo ciclo...")
-        time.sleep(3600)  # Espera 1 hora
+
+            print(
+                f"❌ ERRO GERAL: {e}"
+            )
+
+            time.sleep(15)
+
+# ============================================================
+# START
+# ============================================================
+
+executar()
+
+FIM
