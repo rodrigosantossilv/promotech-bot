@@ -339,18 +339,27 @@ def processar(produto, enviados):
 # LOOP BOT
 # ============================================================
 
-def executar():
+
+            def executar():
+
+    print("🚀 BOT ONLINE")
 
     enviados = carregar()
 
-    enviar(
+    try:
 
-        "🤖 <b>PromoTech iniciado!</b>\n\n"
-        "🔥 Monitorando ofertas automaticamente."
+        ok = enviar(
 
-    )
+            "🤖 <b>PromoTech iniciado!</b>\n\n"
+            "🔥 Monitorando ofertas automaticamente."
 
-    print("🚀 BOT ONLINE")
+        )
+
+        print(f"📨 TESTE TELEGRAM: {ok}")
+
+    except Exception as e:
+
+        print(f"❌ TELEGRAM ERRO: {e}")
 
     while True:
 
@@ -363,7 +372,14 @@ def executar():
 
             for categoria in CATEGORIAS:
 
+                print(f"🔍 BUSCANDO: {categoria}")
+
                 produtos = buscar(categoria)
+
+                print(
+                    f"📦 PRODUTOS: "
+                    f"{len(produtos)}"
+                )
 
                 for produto in produtos:
 
@@ -378,7 +394,7 @@ def executar():
 
         except Exception as e:
 
-            print(f"❌ ERRO GERAL: {e}")
+            print(f"❌ ERRO LOOP: {e}")
 
             time.sleep(15)
 
