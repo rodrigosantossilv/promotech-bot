@@ -1,407 +1,165 @@
-
-
-  
-
-
 import requests
-from bs4 import BeautifulSoup
-from flask import Flask
-from threading import Thread
-from urllib.parse import quote
-import json
 import time
-import os
+import threading
+from flask import Flask
 
-# =========================================================
+# =====================================================
 # CONFIG
-# =========================================================
+# =====================================================
 
 TELEGRAM_TOKEN = "8859168984:AAH8nvexWLrbVjGX46cDSfzaCEteUkFNELs"
-
 CANAL_ID = "@promotechbrasil01"
 
-PUBLISHER_ID = "XHKT38-E62C"
-
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 "
-        "(Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 "
-        "(KHTML, like Gecko) "
-        "Chrome/123.0 Safari/537.36"
-    )
-}
-
 CATEGORIAS = [
-
     "ssd",
     "placa de video",
-    "rx 7600",
-    "rtx 4060",
     "processador",
-    "ryzen 5",
-    "notebook gamer",
     "mouse gamer",
-    "monitor gamer",
     "teclado mecanico",
     "headset gamer",
-    "pc gamer"
-
+    "monitor gamer",
+    "notebook gamer"
 ]
 
-ARQUIVO = "enviados.json"
+ENVIADOS = []
 
-session = requests.Session()
-
-# =========================================================
+# =====================================================
 # FLASK
-# =========================================================
+# =====================================================
 
 app = Flask(__name__)
 
 @app.route("/")
 def home():
+    return "BOT PROMOTECH ONLINE"
 
-    return "PromoTech Bot Online!"
-
-# =========================================================
-# CARREGAR
-# =========================================================
-
-def carregar():
-
-    try:
-
-        with open(ARQUIVO, "r") as f:
-
-            return json.load(f)
-
-    except:
-
-        return []
-
-# =========================================================
-# SALVAR
-# =========================================================
-
-def salvar(lista):
-
-    with open(ARQUIVO, "w") as f:
-
-        json.dump(lista[-5000:], f)
-
-# =========================================================
-# LINK AFILIADO
-# =========================================================
-
-def gerar_link(link):
-
-    if "?" in link:
-
-        return (
-            f"{link}"
-            f"&matt_tool={PUBLISHER_ID}"
-            f"&matt_source=telegram"
-        )
-
-    return (
-        f"{link}"
-        f"?matt_tool={PUBLISHER_ID}"
-        f"&matt_source=telegram"
-    )
-
-# =========================================================
+# =====================================================
 # TELEGRAM
-# =========================================================
+# =====================================================
 
-def enviar(msg):
-
+def enviar_telegram(msg):
     try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
-        url = (
-            f"https://api.telegram.org/"
-            f"bot{TELEGRAM_TOKEN}/sendMessage"
-        )
-
-        payload = {
-
+        data = {
             "chat_id": CANAL_ID,
             "text": msg,
-            "parse_mode": "HTML",
-            "disable_web_page_preview": False
-
+            "parse_mode": "HTML"
         }
 
-        r = session.post(
+        r = requests.post(url, json=data, timeout=20)
 
-            url,
-            json=payload,
-            timeout=30
-
-        )
-
-        print(
-            f"TELEGRAM: {r.status_code}",
-            flush=True
-        )
-
-        return r.status_code == 200
+        print("TELEGRAM:", r.status_code)
 
     except Exception as e:
+        print("ERRO TELEGRAM:", e)
 
-        print(
-            f"ERRO TELEGRAM: {e}",
-            flush=True
-        )
+# =====================================================
+# MERCADO LIVRE
+# =====================================================
 
-        return False
-
-# =========================================================
-# BUSCAR ML
-# =========================================================
-
-def buscar(termo):
+def buscar_produtos(busca):
 
     try:
 
         url = (
-            "https://lista.mercadolivre.com.br/"
-            f"{quote(termo)}"
+            "https://api.mercadolibre.com/sites/MLB/search"
+            f"?q={busca}&limit=5"
         )
 
-        r = session.get(
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
 
+        r = requests.get(
             url,
-            headers=HEADERS,
-            timeout=30
-
+            headers=headers,
+            timeout=20
         )
 
-        print(
-            f"ML STATUS ({termo}): "
-            f"{r.status_code}",
-            flush=True
-        )
+        print("ML STATUS:", r.status_code)
 
         if r.status_code != 200:
-
             return []
 
-        soup = BeautifulSoup(
-            r.text,
-            "html.parser"
-        )
+        data = r.json()
 
-        cards = soup.select(
-            ".ui-search-result"
-        )
-
-        print(
-            f"ENCONTRADOS ({termo}): "
-            f"{len(cards)}",
-            flush=True
-        )
-
-        produtos = []
-
-        for card in cards[:5]:
-
-            try:
-
-                titulo = card.select_one(
-                    ".poly-component__title"
-                )
-
-                link = card.select_one("a")
-
-                preco = card.select_one(
-                    ".andes-money-amount__fraction"
-                )
-
-                if not titulo or not link:
-
-                    continue
-
-                valor = "0"
-
-                if preco:
-
-                    valor = preco.text.strip()
-
-                produtos.append({
-
-                    "id": link["href"],
-
-                    "titulo": titulo.text.strip(),
-
-                    "valor": valor,
-
-                    "link": link["href"]
-
-                })
-
-            except:
-                pass
-
-        return produtos
+        return data.get("results", [])
 
     except Exception as e:
-
-        print(
-            f"ERRO ML: {e}",
-            flush=True
-        )
-
+        print("ERRO ML:", e)
         return []
 
-# =========================================================
-# PROCESSAR
-# =========================================================
+# =====================================================
+# BOT
+# =====================================================
 
-def processar(produto, enviados):
+def rodar_bot():
 
-    try:
+    print("BOT ONLINE")
 
-        if produto["id"] in enviados:
-
-            return
-
-        link = gerar_link(
-            produto["link"]
-        )
-
-        msg = (
-
-            "🔥 <b>OFERTA TECH</b>\n\n"
-
-            f"📌 <b>{produto['titulo']}</b>\n\n"
-
-            f"💰 <b>R$ {produto['valor']}</b>\n\n"
-
-            f"🛒 <a href='{link}'>"
-            f"COMPRAR AGORA"
-            f"</a>\n\n"
-
-            "#PromoTech #Tecnologia"
-
-        )
-
-        ok = enviar(msg)
-
-        if ok:
-
-            enviados.append(
-                produto["id"]
-            )
-
-            salvar(enviados)
-
-            print(
-                f"ENVIADO: "
-                f"{produto['titulo']}",
-                flush=True
-            )
-
-    except Exception as e:
-
-        print(
-            f"ERRO PROCESSAR: {e}",
-            flush=True
-        )
-
-# =========================================================
-# LOOP BOT
-# =========================================================
-
-def executar():
-
-    print(
-        "BOT ONLINE",
-        flush=True
+    enviar_telegram(
+        "🤖 <b>PromoTech Bot Online!</b>"
     )
 
-    enviados = carregar()
-
-    try:
-
-        ok = enviar(
-
-            "🤖 <b>PromoTech iniciado!</b>\n\n"
-            "🔥 Monitorando ofertas automaticamente."
-
-        )
-
-        print(
-            f"TELEGRAM TESTE: {ok}",
-            flush=True
-        )
-
-    except Exception as e:
-
-        print(
-            f"ERRO TELEGRAM: {e}",
-            flush=True
-        )
-
     while True:
-
-        print(
-            "LOOP RODANDO",
-            flush=True
-        )
 
         try:
 
             for categoria in CATEGORIAS:
 
-                print(
-                    f"BUSCANDO: {categoria}",
-                    flush=True
-                )
+                print("\nBUSCANDO:", categoria)
 
-                produtos = buscar(
-                    categoria
-                )
+                produtos = buscar_produtos(categoria)
 
-                for produto in produtos:
+                print("ENCONTRADOS:", len(produtos))
 
-                    processar(
-                        produto,
-                        enviados
+                for p in produtos:
+
+                    pid = p.get("id")
+
+                    if pid in ENVIADOS:
+                        continue
+
+                    titulo = p.get("title", "Produto")
+                    preco = p.get("price", 0)
+                    link = p.get("permalink", "")
+
+                    mensagem = (
+                        f"🔥 <b>{titulo}</b>\n\n"
+                        f"💰 R$ {preco}\n\n"
+                        f"🛒 {link}"
                     )
+
+                    enviar_telegram(mensagem)
+
+                    ENVIADOS.append(pid)
 
                     time.sleep(5)
 
-                time.sleep(3)
+            print("\nAGUARDANDO NOVO CICLO...\n")
+
+            time.sleep(60)
 
         except Exception as e:
+            print("ERRO LOOP:", e)
+            time.sleep(30)
 
-            print(
-                f"ERRO LOOP: {e}",
-                flush=True
-            )
+# =====================================================
+# THREAD
+# =====================================================
 
-            time.sleep(10)
+threading.Thread(
+    target=rodar_bot,
+    daemon=True
+).start()
 
-# =========================================================
+# =====================================================
 # START
-# =========================================================
+# =====================================================
 
 if __name__ == "__main__":
-
-    Thread(
-        target=executar,
-        daemon=True
-    ).start()
-
-    port = int(
-        os.environ.get(
-            "PORT",
-            10000
-        )
-    )
-
     app.run(
         host="0.0.0.0",
-        port=port
+        port=10000
     )
