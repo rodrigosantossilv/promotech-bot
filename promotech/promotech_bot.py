@@ -11,7 +11,7 @@ import os
 # CONFIG
 # =========================
 
-TELEGRAM_TOKEN = "SEU_TOKEN"
+TELEGRAM_TOKEN = "8859168984:AAH8nvexWLrbVjGX46cDSfzaCEteUkFNELs"
 CANAL_ID = "@promotechbrasil01"
 
 HEADERS = {
