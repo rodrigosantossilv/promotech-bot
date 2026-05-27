@@ -1,4 +1,4 @@
-cat > promotech_bot.py << 'FIM'
+
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -344,4 +344,4 @@ def executar():
 
 executar()
 
-FIM
+
