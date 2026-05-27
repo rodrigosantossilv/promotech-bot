@@ -13,11 +13,13 @@ import os
 # ============================================================
 
 TELEGRAM_TOKEN = "8859168984:AAH8nvexWLrbVjGX46cDSfzaCEteUkFNELs"
+
 CANAL_ID = "@promotechbrasil01"
 
 PUBLISHER_ID = "silvarodri20221029134247"
 
 CATEGORIAS = [
+
     "ssd",
     "placa de video",
     "rx 7600",
@@ -30,6 +32,7 @@ CATEGORIAS = [
     "teclado mecanico",
     "headset gamer",
     "pc gamer"
+
 ]
 
 ARQUIVO = "enviados.json"
@@ -42,6 +45,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
+
     return "PromoTech Bot Online!"
 
 # ============================================================
@@ -53,17 +57,19 @@ session = requests.Session()
 HEADERS = {
 
     "User-Agent": (
+
         "Mozilla/5.0 "
         "(Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 "
         "(KHTML, like Gecko) "
         "Chrome/123.0 Safari/537.36"
+
     )
 
 }
 
 # ============================================================
-# SALVAR
+# CARREGAR
 # ============================================================
 
 def carregar():
@@ -77,9 +83,14 @@ def carregar():
 
         return []
 
+# ============================================================
+# SALVAR
+# ============================================================
+
 def salvar(lista):
 
     with open(ARQUIVO, "w") as f:
+
         json.dump(lista[-5000:], f)
 
 # ============================================================
@@ -103,7 +114,7 @@ def afiliado(link):
     )
 
 # ============================================================
-# PREÇO
+# FORMATAR PREÇO
 # ============================================================
 
 def preco(v):
@@ -111,10 +122,12 @@ def preco(v):
     try:
 
         return (
+
             f"R$ {float(v):,.2f}"
             .replace(",", "X")
             .replace(".", ",")
             .replace("X", ".")
+
         )
 
     except:
@@ -142,14 +155,20 @@ def buscar(termo):
 
         )
 
-        print(f"📡 STATUS ML: {response.status_code}")
+        print(
+            f"📡 STATUS ML ({termo}): "
+            f"{response.status_code}"
+        )
 
         if response.status_code != 200:
+
             return []
 
         soup = BeautifulSoup(
+
             response.text,
             "html.parser"
+
         )
 
         produtos = []
@@ -171,15 +190,14 @@ def buscar(termo):
                     ".poly-component__title"
                 )
 
-                link = card.select_one(
-                    "a"
-                )
+                link = card.select_one("a")
 
                 valor = card.select_one(
                     ".andes-money-amount__fraction"
                 )
 
                 if not titulo or not link:
+
                     continue
 
                 preco_num = 0
@@ -187,8 +205,10 @@ def buscar(termo):
                 if valor:
 
                     preco_num = float(
+
                         valor.text
                         .replace(".", "")
+
                     )
 
                 produtos.append({
@@ -257,7 +277,7 @@ def enviar(msg):
         return False
 
 # ============================================================
-# PROCESSAR
+# PROCESSAR PRODUTO
 # ============================================================
 
 def processar(produto, enviados):
@@ -267,6 +287,7 @@ def processar(produto, enviados):
         pid = produto["id"]
 
         if pid in enviados:
+
             return False
 
         titulo = produto["title"]
@@ -283,11 +304,9 @@ def processar(produto, enviados):
 
             f"📌 <b>{titulo}</b>\n\n"
 
-            f"💰 "
-            f"<b>{preco(valor)}</b>\n\n"
+            f"💰 <b>{preco(valor)}</b>\n\n"
 
-            f"🛒 "
-            f"<a href='{link}'>"
+            f"🛒 <a href='{link}'>"
             f"👉 VER PRODUTO"
             f"</a>\n\n"
 
@@ -303,7 +322,10 @@ def processar(produto, enviados):
 
             salvar(enviados)
 
-            print(f"✅ {titulo[:50]}")
+            print(
+                f"✅ ENVIADO: "
+                f"{titulo[:50]}"
+            )
 
             return True
 
@@ -361,29 +383,32 @@ def executar():
             time.sleep(15)
 
 # ============================================================
-# WEB SERVER
+# START
 # ============================================================
 
-def run_web():
+if __name__ == "__main__":
 
+    # inicia bot em thread separada
+    Thread(
+
+        target=executar,
+        daemon=True
+
+    ).start()
+
+    # flask principal
     port = int(
+
         os.environ.get(
             "PORT",
             10000
         )
+
     )
 
     app.run(
+
         host="0.0.0.0",
         port=port
+
     )
-
-# ============================================================
-# START
-# ============================================================
-
-Thread(
-    target=run_web
-).start()
-
-executar()
