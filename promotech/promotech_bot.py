@@ -8,7 +8,7 @@ from datetime import datetime
 # CONFIGURAÇÕES
 # ============================================================
 
-TELEGRAM_TOKEN = "COLOQUE_SEU_NOVO_TOKEN"
+TELEGRAM_TOKEN = "8859168984:AAH8nvexWLrbVjGX46cDSfzaCEteUkFNELs"
 CANAL_ID = "@promotechbrasil01"
 
 # ID afiliado correto
