@@ -12,7 +12,7 @@ import os
 # CONFIGURAÇÕES
 # ============================================================
 
-TELEGRAM_TOKEN = "COLOQUE_SEU_TOKEN"
+TELEGRAM_TOKEN = "8859168984:AAH8nvexWLrbVjGX46cDSfzaCEteUkFNELs"
 CANAL_ID = "@promotechbrasil01"
 
 PUBLISHER_ID = "silvarodri20221029134247"
