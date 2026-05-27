@@ -1,16 +1,18 @@
-
 import requests
 from bs4 import BeautifulSoup
 import json
 import time
 from datetime import datetime
 from urllib.parse import quote
+from flask import Flask
+from threading import Thread
+import os
 
 # ============================================================
-# CONFIG
+# CONFIGURAÇÕES
 # ============================================================
 
-TELEGRAM_TOKEN = "8859168984:AAH8nvexWLrbVjGX46cDSfzaCEteUkFNELs"
+TELEGRAM_TOKEN = "COLOQUE_SEU_TOKEN"
 CANAL_ID = "@promotechbrasil01"
 
 PUBLISHER_ID = "silvarodri20221029134247"
@@ -31,6 +33,16 @@ CATEGORIAS = [
 ]
 
 ARQUIVO = "enviados.json"
+
+# ============================================================
+# FLASK
+# ============================================================
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "PromoTech Bot Online!"
 
 # ============================================================
 # SESSION
@@ -96,12 +108,18 @@ def afiliado(link):
 
 def preco(v):
 
-    return (
-        f"R$ {float(v):,.2f}"
-        .replace(",", "X")
-        .replace(".", ",")
-        .replace("X", ".")
-    )
+    try:
+
+        return (
+            f"R$ {float(v):,.2f}"
+            .replace(",", "X")
+            .replace(".", ",")
+            .replace("X", ".")
+        )
+
+    except:
+
+        return "R$ 0,00"
 
 # ============================================================
 # BUSCAR PRODUTOS
@@ -124,7 +142,7 @@ def buscar(termo):
 
         )
 
-        print(f"📡 STATUS: {response.status_code}")
+        print(f"📡 STATUS ML: {response.status_code}")
 
         if response.status_code != 200:
             return []
@@ -296,7 +314,7 @@ def processar(produto, enviados):
     return False
 
 # ============================================================
-# LOOP
+# LOOP BOT
 # ============================================================
 
 def executar():
@@ -342,6 +360,30 @@ def executar():
 
             time.sleep(15)
 
+# ============================================================
+# WEB SERVER
+# ============================================================
+
+def run_web():
+
+    port = int(
+        os.environ.get(
+            "PORT",
+            10000
+        )
+    )
+
+    app.run(
+        host="0.0.0.0",
+        port=port
+    )
+
+# ============================================================
+# START
+# ============================================================
+
+Thread(
+    target=run_web
+).start()
+
 executar()
-
-
