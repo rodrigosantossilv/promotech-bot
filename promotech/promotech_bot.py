@@ -1,3 +1,8 @@
+
+
+  
+
+
 import requests
 from bs4 import BeautifulSoup
 from flask import Flask
@@ -7,12 +12,15 @@ import json
 import time
 import os
 
-# =========================
+# =========================================================
 # CONFIG
-# =========================
+# =========================================================
 
 TELEGRAM_TOKEN = "8859168984:AAH8nvexWLrbVjGX46cDSfzaCEteUkFNELs"
+
 CANAL_ID = "@promotechbrasil01"
+
+PUBLISHER_ID = "XHKT38-E62C"
 
 HEADERS = {
     "User-Agent": (
@@ -25,52 +33,86 @@ HEADERS = {
 }
 
 CATEGORIAS = [
+
     "ssd",
     "placa de video",
     "rx 7600",
     "rtx 4060",
     "processador",
-    "ryzen",
+    "ryzen 5",
     "notebook gamer",
     "mouse gamer",
-    "monitor gamer"
+    "monitor gamer",
+    "teclado mecanico",
+    "headset gamer",
+    "pc gamer"
+
 ]
 
 ARQUIVO = "enviados.json"
 
 session = requests.Session()
 
-# =========================
+# =========================================================
 # FLASK
-# =========================
+# =========================================================
 
 app = Flask(__name__)
 
 @app.route("/")
 def home():
+
     return "PromoTech Bot Online!"
 
-# =========================
-# SALVAR
-# =========================
+# =========================================================
+# CARREGAR
+# =========================================================
 
 def carregar():
 
     try:
+
         with open(ARQUIVO, "r") as f:
+
             return json.load(f)
 
     except:
+
         return []
+
+# =========================================================
+# SALVAR
+# =========================================================
 
 def salvar(lista):
 
     with open(ARQUIVO, "w") as f:
+
         json.dump(lista[-5000:], f)
 
-# =========================
+# =========================================================
+# LINK AFILIADO
+# =========================================================
+
+def gerar_link(link):
+
+    if "?" in link:
+
+        return (
+            f"{link}"
+            f"&matt_tool={PUBLISHER_ID}"
+            f"&matt_source=telegram"
+        )
+
+    return (
+        f"{link}"
+        f"?matt_tool={PUBLISHER_ID}"
+        f"&matt_source=telegram"
+    )
+
+# =========================================================
 # TELEGRAM
-# =========================
+# =========================================================
 
 def enviar(msg):
 
@@ -82,30 +124,41 @@ def enviar(msg):
         )
 
         payload = {
+
             "chat_id": CANAL_ID,
             "text": msg,
-            "parse_mode": "HTML"
+            "parse_mode": "HTML",
+            "disable_web_page_preview": False
+
         }
 
         r = session.post(
+
             url,
             json=payload,
             timeout=30
+
         )
 
-        print("TELEGRAM:", r.status_code)
+        print(
+            f"TELEGRAM: {r.status_code}",
+            flush=True
+        )
 
         return r.status_code == 200
 
     except Exception as e:
 
-        print("ERRO TELEGRAM:", e)
+        print(
+            f"ERRO TELEGRAM: {e}",
+            flush=True
+        )
 
         return False
 
-# =========================
+# =========================================================
 # BUSCAR ML
-# =========================
+# =========================================================
 
 def buscar(termo):
 
@@ -117,14 +170,21 @@ def buscar(termo):
         )
 
         r = session.get(
+
             url,
             headers=HEADERS,
             timeout=30
+
         )
 
-        print("ML STATUS:", r.status_code)
+        print(
+            f"ML STATUS ({termo}): "
+            f"{r.status_code}",
+            flush=True
+        )
 
         if r.status_code != 200:
+
             return []
 
         soup = BeautifulSoup(
@@ -134,6 +194,12 @@ def buscar(termo):
 
         cards = soup.select(
             ".ui-search-result"
+        )
+
+        print(
+            f"ENCONTRADOS ({termo}): "
+            f"{len(cards)}",
+            flush=True
         )
 
         produtos = []
@@ -153,11 +219,13 @@ def buscar(termo):
                 )
 
                 if not titulo or not link:
+
                     continue
 
-                valor = 0
+                valor = "0"
 
                 if preco:
+
                     valor = preco.text.strip()
 
                 produtos.append({
@@ -179,67 +247,128 @@ def buscar(termo):
 
     except Exception as e:
 
-        print("ERRO ML:", e)
+        print(
+            f"ERRO ML: {e}",
+            flush=True
+        )
 
         return []
 
-# =========================
-# BOT
-# =========================
+# =========================================================
+# PROCESSAR
+# =========================================================
+
+def processar(produto, enviados):
+
+    try:
+
+        if produto["id"] in enviados:
+
+            return
+
+        link = gerar_link(
+            produto["link"]
+        )
+
+        msg = (
+
+            "🔥 <b>OFERTA TECH</b>\n\n"
+
+            f"📌 <b>{produto['titulo']}</b>\n\n"
+
+            f"💰 <b>R$ {produto['valor']}</b>\n\n"
+
+            f"🛒 <a href='{link}'>"
+            f"COMPRAR AGORA"
+            f"</a>\n\n"
+
+            "#PromoTech #Tecnologia"
+
+        )
+
+        ok = enviar(msg)
+
+        if ok:
+
+            enviados.append(
+                produto["id"]
+            )
+
+            salvar(enviados)
+
+            print(
+                f"ENVIADO: "
+                f"{produto['titulo']}",
+                flush=True
+            )
+
+    except Exception as e:
+
+        print(
+            f"ERRO PROCESSAR: {e}",
+            flush=True
+        )
+
+# =========================================================
+# LOOP BOT
+# =========================================================
 
 def executar():
 
-    print("BOT ONLINE")
+    print(
+        "BOT ONLINE",
+        flush=True
+    )
 
     enviados = carregar()
 
-    enviar(
-        "🤖 <b>PromoTech iniciado!</b>"
-    )
+    try:
+
+        ok = enviar(
+
+            "🤖 <b>PromoTech iniciado!</b>\n\n"
+            "🔥 Monitorando ofertas automaticamente."
+
+        )
+
+        print(
+            f"TELEGRAM TESTE: {ok}",
+            flush=True
+        )
+
+    except Exception as e:
+
+        print(
+            f"ERRO TELEGRAM: {e}",
+            flush=True
+        )
 
     while True:
+
+        print(
+            "LOOP RODANDO",
+            flush=True
+        )
 
         try:
 
             for categoria in CATEGORIAS:
 
-                print("BUSCANDO:", categoria)
+                print(
+                    f"BUSCANDO: {categoria}",
+                    flush=True
+                )
 
-                produtos = buscar(categoria)
+                produtos = buscar(
+                    categoria
+                )
 
-                print("ENCONTRADOS:", len(produtos))
+                for produto in produtos:
 
-                for p in produtos:
-
-                    if p["id"] in enviados:
-                        continue
-
-                    msg = (
-
-                        "💻 <b>PRODUTO TECH</b>\n\n"
-
-                        f"📌 <b>{p['titulo']}</b>\n\n"
-
-                        f"💰 <b>R$ {p['valor']}</b>\n\n"
-
-                        f"🛒 {p['link']}"
-
+                    processar(
+                        produto,
+                        enviados
                     )
-
-                    ok = enviar(msg)
-
-                    if ok:
-
-                        enviados.append(
-                            p["id"]
-                        )
-
-                        salvar(enviados)
-
-                        print(
-                            "ENVIADO:",
-                            p["titulo"]
-                        )
 
                     time.sleep(5)
 
@@ -247,13 +376,16 @@ def executar():
 
         except Exception as e:
 
-            print("ERRO LOOP:", e)
+            print(
+                f"ERRO LOOP: {e}",
+                flush=True
+            )
 
             time.sleep(10)
 
-# =========================
+# =========================================================
 # START
-# =========================
+# =========================================================
 
 if __name__ == "__main__":
 
